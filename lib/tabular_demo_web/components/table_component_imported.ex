@@ -58,19 +58,19 @@ defmodule TabularLiveView.TableComponentImported do
   def render(assigns) do
     ~H"""
     <div>
-    <form phx-change="filter" phx-target={@myself} class="mb-4 flex flex-wrap gap-4">
-    <%= for {field, opts} <- @columns, get_filterable(opts) do %>
-    <div>
-      <label class="block text-sm font-medium text-gray-700"><%= get_label(opts) %></label>
-      <select name={to_string(field)} class="border px-2 py-1 rounded">
-        <option value="">Todos</option>
-        <%= for option <- get_filter_options(opts) do %>
-          <option value={option} selected={@filters[to_string(field)] == option}><%= option %></option>
+      <form phx-change="filter" phx-target={@myself} class="mb-4 flex flex-wrap gap-4">
+        <%= for {field, opts} <- @columns, get_filterable(opts) do %>
+          <div>
+            <label class="block text-sm font-medium text-gray-700"><%= get_label(opts) %></label>
+            <select name={to_string(field)} class="border px-2 py-1 rounded">
+              <option value="">Todos</option>
+              <%= for option <- get_filter_options(opts) do %>
+                <option value={option} selected={@filters[to_string(field)] == option}><%= option %></option>
+              <% end %>
+            </select>
+          </div>
         <% end %>
-      </select>
-    </div>
-    <% end %>
-    </form>
+      </form>
 
       <%= if @search_enabled do %>
         <form phx-change="search" phx-target={@myself}>
@@ -107,29 +107,37 @@ defmodule TabularLiveView.TableComponentImported do
           </tr>
         </thead>
         <tbody>
-          <%= if Enum.empty?(@paginated_rows) do %>
-            <tr>
-              <td class={@cell_class <> " text-center text-gray-500"} colspan={length(@columns)}>
-                <%= @no_results_message %>
-              </td>
-            </tr>
-          <% else %>
-            <%= for row <- @paginated_rows do %>
-              <tr>
-                <%= for {field, opts} <- @columns do %>
-                  <% td_class = get_td_class(opts, @cell_class) %>
-                  <td class={td_class}>
-                    <%= if function = get_renderer(opts) do %>
-                      <%= function.(row) %>
-                    <% else %>
-                      <%= Map.get(row, field) %>
-                    <% end %>
-                  </td>
-                <% end %>
-              </tr>
+    <%= if Enum.empty?(@paginated_rows) do %>
+    <tr>
+      <td class={@cell_class <> " text-center text-gray-500"} colspan={length(@columns)}>
+        <%= @no_results_message %>
+      </td>
+    </tr>
+    <% else %>
+    <%= for row <- @paginated_rows do %>
+      <tr>
+        <%= for {field, opts} <- @columns do %>
+          <% td_class = get_td_class(opts, @cell_class) %>
+          <td class={td_class}>
+            <% function = get_renderer(opts) %>
+            <% component = get_component(opts) %>
+
+            <%= if function do %>
+              <%= function.(row) %>
+            <% else %>
+              <%= if component do %>
+                <.live_component module={component} id={"comp-#{row[:id]}-#{field}"} row={row} field={field} />
+              <% else %>
+                <%= Map.get(row, field) %>
+              <% end %>
             <% end %>
-          <% end %>
-        </tbody>
+          </td>
+        <% end %>
+      </tr>
+    <% end %>
+    <% end %>
+    </tbody>
+
       </table>
 
       <%= if @show_pagination do %>
@@ -247,6 +255,10 @@ defmodule TabularLiveView.TableComponentImported do
   defp get_renderer({_field, opts}) when is_binary(opts), do: nil
   defp get_renderer(opts) when is_list(opts), do: Keyword.get(opts, :render)
   defp get_renderer(_), do: nil
+
+  defp get_component({_field, opts}) when is_list(opts), do: Keyword.get(opts, :component)
+  defp get_component(opts) when is_list(opts), do: Keyword.get(opts, :component)
+  defp get_component(_), do: nil
 
   defp get_th_class(opts, default) when is_list(opts), do: Keyword.get(opts, :th_class, default)
   defp get_th_class(_, default), do: default
