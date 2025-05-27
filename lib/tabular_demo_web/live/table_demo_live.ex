@@ -9,7 +9,7 @@ defmodule TabularDemoWeb.TableDemoLive do
         %{
           id: i,
           name: "Person #{i}",
-          email: "person#{i}@correo.com",
+          email: "person#{i}@mail.com",
           role: Enum.random(["User", "Admin", "Guest"]),
           total: Enum.random(100..999)
         }
@@ -138,7 +138,112 @@ defmodule TabularDemoWeb.TableDemoLive do
           }
         />
       </section>
+
+
+    <!-- Example 9: Row Actions -->
+    <section class="border p-4 rounded shadow">
+    <h2 class="text-xl font-semibold mb-1">9. Row Actions</h2>
+    <p class="text-sm text-gray-600 mb-4">Includes Edit and Delete actions per row.</p>
+    <.live_component
+      module={TabularLiveView.TableComponentImported}
+      id="example-9-row-actions"
+      rows={@rows}
+      columns={[
+        actions: [label: "Actions", actions: [&edit_action/1, &delete_action/1]],
+        name: [label: "Name"],
+        email: [label: "Email"]
+      ]}
+      />
+      </section>
+
+    <!-- Example 8: Column Visibility -->
+    <section class="border p-4 rounded shadow">
+    <h2 class="text-xl font-semibold mb-1">8. Hidden Column</h2>
+    <p class="text-sm text-gray-600 mb-4">Email column is hidden using <code>visible: false</code>.</p>
+    <.live_component
+    module={TabularLiveView.TableComponentImported}
+    id="example-8-hidden"
+    rows={@rows}
+    columns={[
+      name: [label: "Name"],
+      email: [label: "Email", visible: false],
+      role: [label: "Role"]
+    ]}
+    />
+    </section>
+    <!-- Example 10: Scroll X -->
+    <section class="border p-4 rounded shadow">
+    <h2 class="text-xl font-semibold mb-1">10. Horizontal Scroll</h2>
+    <p class="text-sm text-gray-600 mb-4">Horizontal scroll for wide tables with many columns.</p>
+    <.live_component
+    module={TabularLiveView.TableComponentImported}
+    id="example-10-scroll"
+    rows={
+      Enum.map(1..30, fn i ->
+        Enum.reduce(1..15, %{id: i}, fn j, acc ->
+          Map.put(acc, :"col_#{j}", "Data #{i}/#{j}")
+        end)
+      end)
+    }
+    columns={
+      Enum.map(1..15, fn j ->
+        {:"col_#{j}", [label: "Column #{j}"]}
+      end)
+    }
+    opts={%{scroll_x: true}}
+    />
+    </section>
+
+    <!-- Example 11: Sticky Header + Scroll -->
+    <!-- Example 11: Sticky Header + Scroll -->
+    <section class="border p-4 rounded shadow">
+    <h2 class="text-xl font-semibold mb-1">11. Sticky Header & Scroll</h2>
+    <p class="text-sm text-gray-600 mb-4">Sticky header + scroll for better UX in large datasets.</p>
+    <.live_component
+    module={TabularLiveView.TableComponentImported}
+    id="example-11-sticky-scroll"
+    rows={
+      Enum.map(1..50, fn i ->
+        Enum.reduce(1..12, %{id: i}, fn j, acc ->
+          Map.put(acc, :"col_#{j}", "Item #{i}:#{j}")
+        end)
+      end)
+    }
+    columns={
+      Enum.map(1..12, fn j ->
+        {:"col_#{j}", [label: "Column #{j}"]}
+      end)
+    }
+    opts={%{scroll_x: true, sticky_header: true}}
+    />
+    </section>
+
+
     </div>
     """
+  end
+
+  def edit_action(row) do
+    assigns = %{id: row.id}
+
+    ~H"""
+    <button href={"#"} phx-click="edit" phx-value-id={@id} class="text-blue-600 hover:underline mr-2" title="Edit">✏️</button>
+    """
+  end
+
+  def delete_action(row) do
+    assigns = %{id: row.id}
+
+    ~H"""
+    <button href={"#"} phx-click="delete" phx-value-id={@id} class="text-red-600 hover:underline" title="Delete">🗑️</button>
+    """
+  end
+
+  def handle_event("edit", %{"id" => id}, socket) do
+    {:noreply, put_flash(socket, :info, "Editing row with ID: #{id}")}
+  end
+
+  def handle_event("delete", %{"id" => id}, socket) do
+    {:noreply, put_flash(socket, :info, "Deleting row with ID: #{id}")}
   end
 end

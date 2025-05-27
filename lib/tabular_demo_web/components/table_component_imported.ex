@@ -53,6 +53,8 @@ defmodule TabularLiveView.TableComponentImported do
     |> assign_new(:cell_class, fn ->
       Map.get(opts, :cell_class, "px-4 py-2 text-sm text-gray-900")
     end)
+    |> assign_new(:scroll_x, fn -> Map.get(opts, :scroll_x, false) end)
+    |> assign_new(:sticky_header, fn -> Map.get(opts, :sticky_header, false) end)
   end
 
   def render(assigns) do
@@ -86,11 +88,14 @@ defmodule TabularLiveView.TableComponentImported do
           <button type="submit" class="mb-2 px-4 py-1 border rounded bg-blue-600 text-white">Descargar CSV</button>
         </form>
       <% end %>
-
+      <div class={@scroll_x && @sticky_header && "overflow-x-auto max-h-[400px] overflow-y-auto" ||
+             @scroll_x && "overflow-x-auto" ||
+             @sticky_header && "max-h-[400px] overflow-y-auto" ||
+             ""}>
       <table class={@table_class}>
-        <thead>
+      <thead class={if @sticky_header, do: "sticky top-0 z-10 bg-white", else: ""}>
           <tr>
-            <%= for {field, opts} <- @columns do %>
+            <%= for {field, opts} <- @columns, get_visible(opts) do %>
               <% label = get_label(opts) %>
               <% sortable = get_sortable(opts) %>
               <% th_class = get_th_class(opts, @header_class) %>
@@ -109,28 +114,36 @@ defmodule TabularLiveView.TableComponentImported do
         <tbody>
     <%= if Enum.empty?(@paginated_rows) do %>
     <tr>
-      <td class={@cell_class <> " text-center text-gray-500"} colspan={length(@columns)}>
+    <td class={@cell_class <> " text-center text-gray-500"} colspan={Enum.count(Enum.filter(@columns, fn {_f, o} -> get_visible(o) end))}>
         <%= @no_results_message %>
       </td>
     </tr>
     <% else %>
     <%= for row <- @paginated_rows do %>
       <tr>
-        <%= for {field, opts} <- @columns do %>
+      <%= for {field, opts} <- @columns, get_visible(opts) do %>
           <% td_class = get_td_class(opts, @cell_class) %>
           <td class={td_class}>
-            <% function = get_renderer(opts) %>
+          <% function = get_renderer(opts) %>
             <% component = get_component(opts) %>
+            <% actions = get_actions(opts) %>
 
             <%= if function do %>
-              <%= function.(row) %>
+            <%= function.(row) %>
             <% else %>
-              <%= if component do %>
-                <.live_component module={component} id={"comp-#{row[:id]}-#{field}"} row={row} field={field} />
-              <% else %>
-                <%= Map.get(row, field) %>
+            <%= if component do %>
+            <.live_component module={component} id={"comp-#{row[:id]}-#{field}"} row={row} field={field} />
+            <% else %>
+            <%= if actions do %>
+              <%= for action_fun <- actions do %>
+                <%= action_fun.(row) %>
               <% end %>
+            <% else %>
+              <%= Map.get(row, field) %>
             <% end %>
+            <% end %>
+            <% end %>
+
           </td>
         <% end %>
       </tr>
@@ -139,7 +152,7 @@ defmodule TabularLiveView.TableComponentImported do
     </tbody>
 
       </table>
-
+    </div>
       <%= if @show_pagination do %>
         <div class="flex justify-between mt-4">
           <button phx-click="prev_page" phx-target={@myself} class="px-3 py-1 border rounded disabled:opacity-50" disabled={@page <= 1}>Anterior</button>
@@ -273,4 +286,11 @@ defmodule TabularLiveView.TableComponentImported do
 
   defp get_filter_options({_field, opts}) when is_list(opts), do: Keyword.get(opts, :options, [])
   defp get_filter_options(_), do: []
+
+  defp get_actions({_field, opts}) when is_list(opts), do: Keyword.get(opts, :actions)
+  defp get_actions(opts) when is_list(opts), do: Keyword.get(opts, :actions)
+  defp get_actions(_), do: nil
+
+  defp get_visible(opts) when is_list(opts), do: Keyword.get(opts, :visible, true)
+  defp get_visible(_), do: true
 end
